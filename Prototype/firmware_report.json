@@ -1,0 +1,10 @@
+[
+  {
+    "file":"matrix_test.exe",
+    "prediction":"NONCRYPTO",
+    "probabilities":{
+      "CRYPTO":0.05,
+      "NONCRYPTO":0.95
+    }
+  }
+]
