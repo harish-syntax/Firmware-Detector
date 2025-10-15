@@ -54,8 +54,7 @@ int main() {
 (workdir / "crypto_like.c").write_text(crypto_c)
 (workdir / "noncrypto.c").write_text(noncrypto_c)
 
-# --- 3. Compile programs with gcc (including real crypto files) ---
-# Add AES, RSA, and SHA source files here
+# --- 3. Compile programs with gcc ---
 source_files = [
     ("aes_like.c", "CRYPTO"),
     ("rsa_like.c", "CRYPTO"),
@@ -63,8 +62,6 @@ source_files = [
     ("aes_variant.c", "CRYPTO"),
     ("rsa_variant.c", "CRYPTO"),
     ("sha_variant.c", "CRYPTO"),
-    ("aes_tiny_test.c", "CRYPTO"),      # <-- ADD THIS
-    ("tiny_aes.c", "CRYPTO"),           # <-- ADD THIS (so main.py can compile it if needed)
     ("crypto_like.c", "CRYPTO"),
     ("noncrypto.c", "NONCRYPTO"),
     ("matrix_mul.c", "NONCRYPTO"),
@@ -82,9 +79,22 @@ for src, label in source_files:
     for opt in opt_levels:
         outname = f"{src.replace('.c','')}_{opt.replace('-','')}.exe"
         outfile = workdir / outname
-        cmd = ["gcc", str(srcpath), "-o", str(outfile), opt]
-        subprocess.run(cmd, check=True)
-        compiled.append((outfile, label, opt))
+
+        # ✅ Special handling for AES Tiny test
+        if "aes_tiny_test" in src or "aes_like" in src:
+            if Path("tiny_aes.c").exists():
+                cmd = ["gcc", src, "tiny_aes.c", "-o", str(outfile), opt]
+            else:
+                cmd = ["gcc", src, "-o", str(outfile), opt]
+        else:
+            cmd = ["gcc", str(srcpath), "-o", str(outfile), opt]
+
+        try:
+            subprocess.run(cmd, check=True)
+            compiled.append((outfile, label, opt))
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Compilation failed for {src}: {e}")
+
 print("✅ Compiled binaries:", [p.name for p, l, o in compiled])
 
 # --- 4. Disassemble binaries ---
@@ -145,7 +155,7 @@ joblib.dump(clf, workdir / "crypto_rf_model.joblib")
 
 # --- 7. Test on new unseen variant ---
 test_src = workdir / "crypto_variant.c"
-test_src.write_text(crypto_c.replace("200", "150"))  # smaller loop count
+test_src.write_text(crypto_c.replace("200", "150"))
 test_bin = workdir / "crypto_variant_O2.exe"
 subprocess.run(["gcc", str(test_src), "-o", str(test_bin), "-O2"], check=True)
 
